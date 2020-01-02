@@ -25,7 +25,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
-
+ 
+import java.util.Iterator;
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -61,7 +62,7 @@ public class YamlValidatorPreReceiveRepositoryHook implements PreRepositoryHook
                                                  final ContentService contentService,
                                                  final CommitIndex commitIndex
                                                  ){
-        this.commitService = commitService;
+        this.commitService = commitpreUpdateService;
         this.contentService = contentService;
         this.commitIndex = commitIndex;
     }
