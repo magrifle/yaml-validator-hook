@@ -2,15 +2,17 @@ package com.mcmanus.scm.stash.hook;
 
 import com.atlassian.bitbucket.commit.Commit;
 import com.atlassian.bitbucket.commit.CommitService;
-import com.atlassian.bitbucket.content.*;
+import com.atlassian.bitbucket.content.Change;
+import com.atlassian.bitbucket.content.ChangeType;
+import com.atlassian.bitbucket.content.ChangesRequest;
+import com.atlassian.bitbucket.content.ContentService;
+import com.atlassian.bitbucket.content.SimplePath;
 import com.atlassian.bitbucket.idx.CommitIndex;
 import com.atlassian.bitbucket.repository.Repository;
+import com.atlassian.bitbucket.server.ApplicationPropertiesService;
 import com.atlassian.bitbucket.util.Page;
 import com.atlassian.bitbucket.util.PageRequest;
 import com.atlassian.bitbucket.util.PageUtils;
-import org.junit.Test;
-import org.springframework.core.io.ClassPathResource;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -18,6 +20,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import org.junit.Test;
+import org.springframework.core.io.ClassPathResource;
 
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertFalse;
@@ -43,6 +47,7 @@ public class YamlValidatorPreReceiveRepositoryHookTest {
         CommitService commitServiceMock = mock(CommitService.class);
         ContentService contentServiceMock = mock(ContentService.class);
         CommitIndex commitIndexMock = mock(CommitIndex.class);
+        ApplicationPropertiesService applicationPropertiesService = mock(ApplicationPropertiesService.class);
 
         Commit commitMock = mock(Commit.class);
         Repository repositoryMock = mock(Repository.class);
@@ -63,7 +68,7 @@ public class YamlValidatorPreReceiveRepositoryHookTest {
         when(change.getPath()).thenReturn(new SimplePath("/right/here.yaml"));
 
         YamlValidatorPreReceiveRepositoryHook hook = new YamlValidatorPreReceiveRepositoryHook(commitServiceMock,
-                contentServiceMock, commitIndexMock);
+            contentServiceMock, commitIndexMock, applicationPropertiesService);
 
         ConcurrentMap<String, Commit> testPathChanges = new ConcurrentHashMap<>();
 
@@ -77,13 +82,14 @@ public class YamlValidatorPreReceiveRepositoryHookTest {
         CommitService commitServiceMock = mock(CommitService.class);
         ContentService contentServiceMock = mock(ContentService.class);
         CommitIndex commitIndexMock = mock(CommitIndex.class);
+        ApplicationPropertiesService applicationPropertiesService = mock(ApplicationPropertiesService.class);
 
         ClassPathResource classPathResource = new ClassPathResource("good.yaml");
         File resource = classPathResource.getFile();
         String testString = new String(Files.readAllBytes(Paths.get(resource.getPath())));
 
         YamlValidatorPreReceiveRepositoryHook hook = new YamlValidatorPreReceiveRepositoryHook(commitServiceMock,
-                contentServiceMock, commitIndexMock);
+            contentServiceMock, commitIndexMock, applicationPropertiesService);
 
         ConcurrentMap<String, String> results = new ConcurrentHashMap<>();
         boolean check = hook.checkFile(testString, results, resource.getPath());
@@ -96,13 +102,14 @@ public class YamlValidatorPreReceiveRepositoryHookTest {
         CommitService commitServiceMock = mock(CommitService.class);
         ContentService contentServiceMock = mock(ContentService.class);
         CommitIndex commitIndexMock = mock(CommitIndex.class);
+        ApplicationPropertiesService applicationPropertiesService = mock(ApplicationPropertiesService.class);
 
         ClassPathResource classPathResource = new ClassPathResource("bad.yaml");
         File resource = classPathResource.getFile();
         String testString = new String(Files.readAllBytes(Paths.get(resource.getPath())));
 
         YamlValidatorPreReceiveRepositoryHook hook = new YamlValidatorPreReceiveRepositoryHook(commitServiceMock,
-                contentServiceMock, commitIndexMock);
+            contentServiceMock, commitIndexMock, applicationPropertiesService);
 
         ConcurrentMap<String, String> results = new ConcurrentHashMap<>();
         boolean check = hook.checkFile(testString, results, resource.getPath());
@@ -116,13 +123,14 @@ public class YamlValidatorPreReceiveRepositoryHookTest {
         CommitService commitServiceMock = mock(CommitService.class);
         ContentService contentServiceMock = mock(ContentService.class);
         CommitIndex commitIndexMock = mock(CommitIndex.class);
+        ApplicationPropertiesService applicationPropertiesService = mock(ApplicationPropertiesService.class);
 
         ClassPathResource classPathResource = new ClassPathResource("multi-good.yaml");
         File resource = classPathResource.getFile();
         String testString = new String(Files.readAllBytes(Paths.get(resource.getPath())));
 
         YamlValidatorPreReceiveRepositoryHook hook = new YamlValidatorPreReceiveRepositoryHook(commitServiceMock,
-                contentServiceMock, commitIndexMock);
+            contentServiceMock, commitIndexMock, applicationPropertiesService);
 
         ConcurrentMap<String, String> results = new ConcurrentHashMap<>();
         boolean check = hook.checkFile(testString, results, resource.getPath());
@@ -135,13 +143,14 @@ public class YamlValidatorPreReceiveRepositoryHookTest {
         CommitService commitServiceMock = mock(CommitService.class);
         ContentService contentServiceMock = mock(ContentService.class);
         CommitIndex commitIndexMock = mock(CommitIndex.class);
+        ApplicationPropertiesService applicationPropertiesService = mock(ApplicationPropertiesService.class);
 
         ClassPathResource classPathResource = new ClassPathResource("multi-bad.yaml");
         File resource = classPathResource.getFile();
         String testString = new String(Files.readAllBytes(Paths.get(resource.getPath())));
 
         YamlValidatorPreReceiveRepositoryHook hook = new YamlValidatorPreReceiveRepositoryHook(commitServiceMock,
-                contentServiceMock, commitIndexMock);
+            contentServiceMock, commitIndexMock, applicationPropertiesService);
 
         ConcurrentMap<String, String> results = new ConcurrentHashMap<>();
         boolean check = hook.checkFile(testString, results, resource.getPath());

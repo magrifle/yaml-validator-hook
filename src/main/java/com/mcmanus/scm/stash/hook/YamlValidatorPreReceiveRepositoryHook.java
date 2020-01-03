@@ -12,32 +12,34 @@ import com.atlassian.bitbucket.hook.repository.PreRepositoryHook;
 import com.atlassian.bitbucket.hook.repository.PreRepositoryHookContext;
 import com.atlassian.bitbucket.hook.repository.RepositoryHookRequest;
 import com.atlassian.bitbucket.hook.repository.RepositoryHookResult;
+import com.atlassian.bitbucket.hook.repository.StandardRepositoryHookTrigger;
 import com.atlassian.bitbucket.idx.CommitIndex;
 import com.atlassian.bitbucket.io.TypeAwareOutputSupplier;
 import com.atlassian.bitbucket.repository.RefChange;
 import com.atlassian.bitbucket.repository.Repository;
+import com.atlassian.bitbucket.server.ApplicationPropertiesService;
 import com.atlassian.bitbucket.util.MoreSuppliers;
 import com.atlassian.bitbucket.util.Page;
 import com.atlassian.bitbucket.util.PageUtils;
+import com.atlassian.bitbucket.util.Version;
 import com.atlassian.plugin.spring.scanner.annotation.export.ExportAsService;
 import com.atlassian.plugin.spring.scanner.annotation.imports.ComponentImport;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.yaml.snakeyaml.LoaderOptions;
-import org.yaml.snakeyaml.Yaml;
- 
-import java.util.Iterator;
-import javax.annotation.Nonnull;
-import javax.inject.Inject;
-import javax.inject.Named;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import javax.annotation.Nonnull;
+import javax.inject.Inject;
+import javax.inject.Named;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.LoaderOptions;
+import org.yaml.snakeyaml.Yaml;
 
 @ExportAsService({YamlValidatorPreReceiveRepositoryHook.class})
 @Named("yamlValidatorRepositoryHook")
@@ -49,6 +51,7 @@ public class YamlValidatorPreReceiveRepositoryHook implements PreRepositoryHook
     private static final String EXTENSION_CONFIG_STRING = "extension";
     private static final String SUMMARY = "summary";
     private static final String DETAIL = "detail";
+    private static final String MINIMUM_VERSION_FOR_WEB_UI_SUPPORT = "5.15.1";
 
     @ComponentImport
     private final CommitService commitService;
@@ -56,15 +59,21 @@ public class YamlValidatorPreReceiveRepositoryHook implements PreRepositoryHook
     private final ContentService contentService;
     @ComponentImport
     private final CommitIndex commitIndex;
+    @ComponentImport
+    private final ApplicationPropertiesService applicationPropertiesService;
+
 
     @Inject
-    public YamlValidatorPreReceiveRepositoryHook(final CommitService commitService,
-                                                 final ContentService contentService,
-                                                 final CommitIndex commitIndex
-                                                 ){
-        this.commitService = commitpreUpdateService;
+    public YamlValidatorPreReceiveRepositoryHook(
+        final CommitService commitService,
+        final ContentService contentService,
+        final CommitIndex commitIndex,
+        final ApplicationPropertiesService applicationPropertiesService)
+    {
+        this.commitService = commitService;
         this.contentService = contentService;
         this.commitIndex = commitIndex;
+        this.applicationPropertiesService = applicationPropertiesService;
     }
 
     /**
@@ -230,19 +239,46 @@ public class YamlValidatorPreReceiveRepositoryHook implements PreRepositoryHook
         }
     }
 
+
     @Nonnull
     @Override
-    public RepositoryHookResult preUpdate(@Nonnull PreRepositoryHookContext preRepositoryHookContext, @Nonnull RepositoryHookRequest repositoryHookRequest) {
-        RepositoryHookResult result;
-        Map<String, String> processedResults = onReceive(repositoryHookRequest.getRepository(),
-                repositoryHookRequest.getRefChanges(),
-                preRepositoryHookContext.getSettings().getString(EXTENSION_CONFIG_STRING));
+    public RepositoryHookResult preUpdate(@Nonnull PreRepositoryHookContext preRepositoryHookContext, @Nonnull RepositoryHookRequest repositoryHookRequest)
+    {
+        Map<String, String> processedResults = onReceive(
+            repositoryHookRequest.getRepository(),
+            repositoryHookRequest.getRefChanges(),
+            preRepositoryHookContext.getSettings().getString(EXTENSION_CONFIG_STRING));
 
-        if (processedResults.containsKey(SUMMARY)) {
-            result = RepositoryHookResult.rejected(processedResults.get(SUMMARY), processedResults.get(DETAIL));
-        } else {
-            result = RepositoryHookResult.accepted();
+        LOG.info("Get the version of bitbucket server {}", applicationPropertiesService.getBuildVersion());
+        LOG.info("Current Trigger ID {}", repositoryHookRequest.getTrigger().getId());
+        LOG.info("StandardRepositoryHookTrigger.FILE_EDIT.getId() {}", StandardRepositoryHookTrigger.FILE_EDIT.getId());
+
+        if (processedResults.containsKey(SUMMARY))
+        {
+            Version currentVersion = new Version(applicationPropertiesService.getBuildVersion());
+
+            Version webModifiableVersion = new Version(MINIMUM_VERSION_FOR_WEB_UI_SUPPORT);
+
+            final boolean isFileEdit = StandardRepositoryHookTrigger.FILE_EDIT.getId().equals(repositoryHookRequest.getTrigger().getId());
+
+            final RepositoryHookResult.Builder builder = getVeto(processedResults);
+
+            //the version where the bug of hook error messages from file edit on UI was fixed https://jira.atlassian.com/browse/BSERV-11168
+            if (currentVersion.compareTo(webModifiableVersion) < 0 && isFileEdit)
+            {
+                builder
+                    .veto(processedResults.get(SUMMARY), processedResults.get(DETAIL));
+            }
+            return builder.build();
         }
-        return result;
+
+        return RepositoryHookResult.accepted();
+    }
+
+
+    private RepositoryHookResult.Builder getVeto(Map<String, String> processedResults)
+    {
+        return new RepositoryHookResult.Builder()
+            .veto(processedResults.get(SUMMARY), processedResults.get(DETAIL));
     }
 }
